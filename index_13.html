@@ -1,0 +1,1847 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>BucaMap</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,300;1,9..144,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+/* ══════════════════════════════════════════════════════
+   TOKENS
+══════════════════════════════════════════════════════ */
+:root {
+  --bg:          #080809;
+  --s0:          #0d0d10;
+  --s1:          #111114;
+  --s2:          #18181d;
+  --s3:          #21212a;
+  --s4:          #2a2a36;
+  --border:      rgba(255,255,255,.07);
+  --border-md:   rgba(255,255,255,.11);
+  --gold:        #c8a84b;
+  --gold-dim:    rgba(200,168,75,.14);
+  --gold-glow:   rgba(200,168,75,.30);
+  --gold-hi:     #e6c96e;
+  --tx:          #edead0;
+  --tx2:         #8a8880;
+  --tx3:         #3e3c38;
+  --tx4:         #252420;
+  --r-pill:      100px;
+  --r-lg:        20px;
+  --r-md:        14px;
+  --ease-s:      cubic-bezier(.22,.68,0,1.18);
+  --ease-o:      cubic-bezier(.25,.46,.45,.94);
+  /* layout */
+  --nav-h:       62px;
+  --bar-h:       54px;
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left,  0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
+
+/* ══════════════════════════════════════════════════════
+   RESET
+══════════════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(--tx);font-family:'Outfit',sans-serif;font-size:15px;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input{font-family:inherit}
+ul,li{list-style:none}
+a{text-decoration:none;color:inherit}
+
+/* ══════════════════════════════════════════════════════
+   MAP
+══════════════════════════════════════════════════════ */
+#map{position:fixed;inset:0;z-index:1}
+.leaflet-control-zoom{display:none}
+.leaflet-control-attribution{background:rgba(0,0,0,.55)!important;color:#444!important;font-size:9px!important;padding:2px 6px!important;border-radius:4px 0 0 0!important}
+.leaflet-control-attribution a{color:#666!important}
+
+/* ══════════════════════════════════════════════════════
+   MARKERS
+══════════════════════════════════════════════════════ */
+.bm-pin{width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative}
+.bm-pin::before{content:'';position:absolute;inset:-8px}
+.bm-pin-dot{width:34px;height:34px;border-radius:50% 50% 50% 5px;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 3px 14px rgba(0,0,0,.6);transition:transform .22s var(--ease-s),box-shadow .22s}
+.bm-pin-icon{transform:rotate(45deg);font-size:14px;line-height:1;display:block}
+.bm-pin:hover  .bm-pin-dot{transform:rotate(-45deg) scale(1.2)}
+.bm-pin.active .bm-pin-dot{transform:rotate(-45deg) scale(1.25);box-shadow:0 0 0 3px var(--gold),0 4px 22px var(--gold-glow)}
+.bm-pin.filtered-out{opacity:0;pointer-events:none;transition:opacity .25s}
+.cat-kosk            .bm-pin-dot{background:#231a0a;border:1.5px solid #c9a84c}
+.cat-levanten-evi    .bm-pin-dot{background:#1a1228;border:1.5px solid #9b74e8}
+.cat-levanten-evleri .bm-pin-dot{background:#1a1228;border:1.5px solid #9b74e8}
+.cat-dini-yapi       .bm-pin-dot{background:#0d1e1d;border:1.5px solid #45c9c0}
+.cat-egitim-dini-yapi .bm-pin-dot{background:#0d1e1d;border:1.5px solid #45c9c0}
+.cat-altyapi         .bm-pin-dot{background:#191a0a;border:1.5px solid #cee048}
+.cat-meydan          .bm-pin-dot{background:#1c0e0e;border:1.5px solid #e06858}
+.cat-park            .bm-pin-dot{background:#0c1a0c;border:1.5px solid #5fbe5e}
+.cat-muze            .bm-pin-dot{background:#1a0d1a;border:1.5px solid #d96abc}
+.cat-kutuphane       .bm-pin-dot{background:#0d1420;border:1.5px solid #56a8e2}
+.cat-kulturel-mekan  .bm-pin-dot{background:#1c1308;border:1.5px solid #de9e38}
+.cat-ulasim-tarihi   .bm-pin-dot{background:#0c1619;border:1.5px solid #52cce0}
+.cat-anitsal-nokta   .bm-pin-dot{background:#1c1c0c;border:1.5px solid #d2c846}
+.cat-sembol-yapi     .bm-pin-dot{background:#1c0e16;border:1.5px solid #d8628a}
+.cat-otel            .bm-pin-dot{background:#1a1a10;border:1.5px solid #bec068}
+
+/* ══════════════════════════════════════════════════════
+   TOP BAR
+══════════════════════════════════════════════════════ */
+#top-bar{
+  position:fixed;top:0;left:0;right:0;z-index:400;
+  height:calc(var(--bar-h) + var(--sat));
+  padding-top:var(--sat);
+  background:rgba(8,8,9,.88);
+  backdrop-filter:blur(24px) saturate(1.6);
+  -webkit-backdrop-filter:blur(24px) saturate(1.6);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;
+  padding-left:calc(12px + var(--sal));
+  padding-right:calc(12px + var(--sar));
+  gap:12px;
+}
+.tb-hamburger{
+  width:40px;height:40px;border-radius:10px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  flex-shrink:0;
+  transition:background .15s;
+}
+.tb-hamburger:hover,.tb-hamburger:active{background:var(--s3)}
+.tb-ham-line{width:18px;height:1.5px;background:var(--tx2);border-radius:2px;transition:transform .25s,opacity .25s}
+.tb-logo{flex:1;text-align:center}
+.tb-logo h1{font-family:'Fraunces',serif;font-size:18px;font-weight:600;letter-spacing:.02em;color:var(--gold-hi);line-height:1}
+.tb-logo p{font-size:9px;font-weight:300;color:var(--tx3);letter-spacing:.1em;text-transform:uppercase;margin-top:1px}
+.tb-right{width:40px;height:40px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.tb-loc-dot{width:8px;height:8px;border-radius:50%;background:var(--gold);opacity:.6;animation:pulse-dot 2.6s ease infinite}
+@keyframes pulse-dot{0%,100%{opacity:.6;transform:scale(1)}50%{opacity:.25;transform:scale(.65)}}
+
+/* ══════════════════════════════════════════════════════
+   SEARCH BAR
+══════════════════════════════════════════════════════ */
+#search-wrap{
+  position:fixed;z-index:390;
+  top:calc(var(--bar-h) + var(--sat) + 10px);
+  left:calc(14px + var(--sal));
+  right:calc(14px + var(--sar));
+}
+.search-inner{
+  display:flex;align-items:center;gap:10px;
+  background:rgba(14,14,17,.92);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid var(--border-md);
+  border-radius:var(--r-pill);
+  padding:0 16px;
+  height:44px;
+  box-shadow:0 4px 20px rgba(0,0,0,.4);
+  transition:border-color .2s,box-shadow .2s;
+}
+.search-inner:focus-within{
+  border-color:rgba(200,168,75,.4);
+  box-shadow:0 4px 24px rgba(0,0,0,.5),0 0 0 3px var(--gold-dim);
+}
+.search-icon{font-size:15px;opacity:.45;flex-shrink:0}
+#search-input{
+  flex:1;background:none;border:none;outline:none;
+  color:var(--tx);font-size:14px;font-weight:400;
+  caret-color:var(--gold);
+}
+#search-input::placeholder{color:var(--tx3)}
+.search-clear{
+  width:22px;height:22px;border-radius:50%;
+  background:var(--s3);
+  display:none;align-items:center;justify-content:center;
+  font-size:10px;color:var(--tx2);flex-shrink:0;
+  transition:background .15s;
+}
+.search-clear:hover{background:var(--s4)}
+.search-clear.visible{display:flex}
+
+/* search results dropdown */
+#search-results{
+  position:absolute;top:calc(44px + 8px);left:0;right:0;
+  background:rgba(14,14,17,.96);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid var(--border-md);border-radius:var(--r-lg);
+  overflow:hidden;
+  box-shadow:0 8px 32px rgba(0,0,0,.5);
+  max-height:260px;overflow-y:auto;
+  display:none;
+}
+#search-results.visible{display:block}
+.sr-item{
+  display:flex;align-items:center;gap:12px;
+  padding:11px 16px;cursor:pointer;
+  border-bottom:1px solid var(--border);
+  transition:background .12s;
+}
+.sr-item:last-child{border-bottom:none}
+.sr-item:hover,.sr-item:active{background:var(--s3)}
+.sr-icon{font-size:16px;flex-shrink:0}
+.sr-text{}
+.sr-name{font-size:13px;font-weight:500;color:var(--tx)}
+.sr-cat{font-size:11px;color:var(--tx2);margin-top:1px}
+.sr-empty{padding:16px;text-align:center;font-size:13px;color:var(--tx3)}
+
+/* ══════════════════════════════════════════════════════
+   FILTER CHIPS
+══════════════════════════════════════════════════════ */
+#chips-wrap{
+  position:fixed;z-index:380;
+  top:calc(var(--bar-h) + var(--sat) + 10px + 44px + 10px);
+  left:0;right:0;
+  overflow-x:auto;overflow-y:hidden;
+  scrollbar-width:none;white-space:nowrap;
+  padding:0 calc(14px + var(--sal));
+  -webkit-overflow-scrolling:touch;
+}
+#chips-wrap::-webkit-scrollbar{display:none}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:7px 14px;
+  border-radius:var(--r-pill);
+  border:1px solid var(--border-md);
+  background:rgba(14,14,17,.88);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  font-size:12px;font-weight:500;color:var(--tx2);
+  cursor:pointer;margin-right:7px;
+  transition:background .18s,border-color .18s,color .18s,box-shadow .18s;
+  vertical-align:top;height:34px;
+  white-space:nowrap;
+}
+.chip:last-child{margin-right:0}
+.chip-icon{font-size:13px}
+.chip.active{
+  background:var(--gold-dim);
+  border-color:rgba(200,168,75,.45);
+  color:var(--gold-hi);
+  box-shadow:0 0 0 1px rgba(200,168,75,.2);
+}
+.chip:hover:not(.active){background:var(--s3);border-color:var(--border-md);color:var(--tx)}
+
+/* ══════════════════════════════════════════════════════
+   ZOOM CONTROLS
+══════════════════════════════════════════════════════ */
+#zoom-wrap{
+  position:fixed;right:calc(14px + var(--sar));
+  top:50%;transform:translateY(-50%);
+  z-index:390;display:flex;flex-direction:column;gap:5px;
+}
+.z-btn{
+  width:40px;height:40px;border-radius:12px;
+  background:rgba(9,9,11,.88);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid var(--border-md);
+  color:var(--tx2);font-size:20px;font-weight:300;line-height:1;
+  display:flex;align-items:center;justify-content:center;
+  transition:color .15s,border-color .15s,background .15s;
+}
+.z-btn:hover,.z-btn:active{color:var(--gold);border-color:var(--gold-glow);background:rgba(200,168,75,.08)}
+
+/* ══════════════════════════════════════════════════════
+   BOTTOM NAVIGATION BAR
+══════════════════════════════════════════════════════ */
+#bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;z-index:510;
+  height:calc(var(--nav-h) + var(--sab));
+  padding-bottom:var(--sab);
+  background:rgba(8,8,9,.92);
+  backdrop-filter:blur(24px) saturate(1.6);
+  -webkit-backdrop-filter:blur(24px) saturate(1.6);
+  border-top:1px solid var(--border);
+  display:flex;align-items:stretch;
+  padding-left:var(--sal);
+  padding-right:var(--sar);
+}
+.nav-tab{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:4px;
+  cursor:pointer;
+  padding-top:6px;
+  transition:opacity .15s;
+  position:relative;
+}
+.nav-tab-icon{font-size:20px;line-height:1;transition:transform .22s var(--ease-s)}
+.nav-tab-label{font-size:10px;font-weight:500;letter-spacing:.04em;color:var(--tx2);transition:color .18s}
+.nav-tab.active .nav-tab-icon{transform:scale(1.12)}
+.nav-tab.active .nav-tab-label{color:var(--gold)}
+.nav-tab.active::after{
+  content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);
+  width:28px;height:2px;border-radius:0 0 2px 2px;
+  background:var(--gold);
+}
+.nav-tab:hover:not(.active) .nav-tab-icon{transform:scale(1.06)}
+/* favorites badge */
+.nav-fav-badge{
+  position:absolute;top:6px;right:calc(50% - 18px);
+  min-width:16px;height:16px;border-radius:8px;
+  background:#e06858;color:#fff;
+  font-size:9px;font-weight:600;
+  display:none;align-items:center;justify-content:center;
+  padding:0 4px;
+  border:1.5px solid var(--bg);
+}
+.nav-fav-badge.visible{display:flex}
+
+/* ══════════════════════════════════════════════════════
+   SIDE DRAWER
+══════════════════════════════════════════════════════ */
+#drawer-backdrop{
+  position:fixed;inset:0;z-index:590;
+  background:rgba(0,0,0,.6);
+  opacity:0;pointer-events:none;
+  transition:opacity .32s var(--ease-o);
+}
+#drawer-backdrop.open{opacity:1;pointer-events:auto}
+
+#drawer{
+  position:fixed;top:0;bottom:0;left:0;z-index:600;
+  width:min(320px, 85vw);
+  background:var(--s1);
+  border-right:1px solid var(--border-md);
+  display:flex;flex-direction:column;
+  transform:translateX(-100%);
+  transition:transform .38s var(--ease-s);
+  overflow:hidden;
+}
+#drawer.open{transform:translateX(0)}
+
+.drawer-top{
+  padding:calc(20px + var(--sat)) 20px 16px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
+}
+.drawer-logo{display:flex;align-items:center;gap:10px}
+.drawer-logo-mark{
+  width:34px;height:34px;border-radius:50%;
+  background:var(--gold-dim);border:1px solid rgba(200,168,75,.35);
+  display:flex;align-items:center;justify-content:center;font-size:15px;
+}
+.drawer-logo-text h2{font-family:'Fraunces',serif;font-size:17px;font-weight:600;color:var(--gold-hi)}
+.drawer-logo-text p{font-size:9px;font-weight:300;color:var(--tx3);letter-spacing:.1em;text-transform:uppercase;margin-top:1px}
+.drawer-close{
+  width:32px;height:32px;border-radius:50%;
+  background:var(--s2);border:1px solid var(--border);
+  color:var(--tx2);font-size:13px;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s,color .15s;
+}
+.drawer-close:hover,.drawer-close:active{background:var(--s3);color:var(--tx)}
+
+/* drawer nav items */
+.drawer-nav{padding:12px 0;border-bottom:1px solid var(--border);flex-shrink:0}
+.drawer-nav-item{
+  display:flex;align-items:center;gap:14px;
+  padding:13px 20px;cursor:pointer;
+  transition:background .14s;
+  position:relative;
+}
+.drawer-nav-item:hover,.drawer-nav-item:active{background:var(--s2)}
+.drawer-nav-item.active-nav{background:var(--gold-dim)}
+.drawer-nav-item.active-nav .dni-label{color:var(--gold)}
+.dni-icon{font-size:18px;width:24px;text-align:center;flex-shrink:0}
+.dni-label{font-size:14px;font-weight:400;color:var(--tx);transition:color .14s}
+.dni-count{
+  margin-left:auto;
+  padding:3px 8px;border-radius:var(--r-pill);
+  background:var(--s3);font-size:10px;font-weight:500;color:var(--tx2);
+}
+.dni-arrow{margin-left:auto;font-size:11px;color:var(--tx3)}
+
+/* drawer locations list */
+.drawer-section-title{
+  padding:14px 20px 8px;
+  font-size:10px;font-weight:600;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--tx3);flex-shrink:0;
+}
+.drawer-locs{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.drawer-locs::-webkit-scrollbar{width:3px}
+.drawer-locs::-webkit-scrollbar-track{background:transparent}
+.drawer-locs::-webkit-scrollbar-thumb{background:var(--tx4);border-radius:2px}
+.drawer-loc-item{
+  display:flex;align-items:center;gap:12px;
+  padding:11px 20px;cursor:pointer;
+  border-bottom:1px solid var(--border);
+  transition:background .12s;
+}
+.drawer-loc-item:hover,.drawer-loc-item:active{background:var(--s2)}
+.dli-icon{font-size:18px;width:22px;text-align:center;flex-shrink:0}
+.dli-text{}
+.dli-name{font-size:13px;font-weight:500;color:var(--tx)}
+.dli-cat{font-size:11px;color:var(--tx2);margin-top:1px}
+
+/* ══════════════════════════════════════════════════════
+   BOTTOM SHEET
+══════════════════════════════════════════════════════ */
+#sheet-backdrop{
+  position:fixed;inset:0;z-index:490;
+  pointer-events:none;opacity:0;
+  transition:opacity .3s;
+}
+#sheet-backdrop.active{pointer-events:auto;opacity:1}
+
+#sheet{
+  position:fixed;left:0;right:0;
+  bottom:calc(var(--nav-h) + var(--sab));
+  z-index:500;
+  max-width:560px;margin:0 auto;
+  display:flex;flex-direction:column;
+  background:var(--s1);
+  border:1px solid var(--border-md);border-bottom:none;
+  border-radius:var(--r-lg) var(--r-lg) 0 0;
+  box-shadow:0 -4px 48px rgba(0,0,0,.75),inset 0 1px 0 rgba(255,255,255,.055);
+  height:50vh;max-height:calc(88vh - var(--nav-h) - var(--sab));
+  transform:translateY(110%);
+  transition:transform .46s var(--ease-s);
+  will-change:transform;overflow:hidden;
+}
+#sheet.open{transform:translateY(0)}
+
+.sheet-handle-row{flex-shrink:0;padding:11px 0 4px;display:flex;align-items:center;justify-content:center;cursor:grab;user-select:none}
+.sheet-handle-row:active{cursor:grabbing}
+.sheet-handle-bar{width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,.13)}
+
+.sheet-meta-row{
+  flex-shrink:0;
+  display:flex;align-items:flex-start;justify-content:space-between;
+  gap:12px;padding:2px 18px 13px;
+}
+.sheet-meta-left{flex:1;min-width:0}
+.sheet-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:3px 10px 3px 7px;border-radius:var(--r-pill);
+  font-size:10px;font-weight:500;letter-spacing:.09em;text-transform:uppercase;
+  border:1px solid;margin-bottom:9px;line-height:1.65;
+}
+.sheet-title{font-family:'Fraunces',serif;font-size:20px;font-weight:500;line-height:1.22;color:var(--tx);margin-bottom:4px}
+.sheet-name{font-size:12px;font-weight:400;color:var(--gold);letter-spacing:.04em;opacity:.9}
+
+.sheet-actions{display:flex;gap:6px;margin-top:2px;flex-shrink:0}
+.sheet-fav-btn{
+  width:32px;height:32px;border-radius:50%;
+  background:var(--s2);border:1px solid var(--border);
+  color:var(--tx2);font-size:14px;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s,color .15s,border-color .15s;
+  flex-shrink:0;
+}
+.sheet-fav-btn:hover,.sheet-fav-btn:active{background:rgba(224,104,88,.15);border-color:rgba(224,104,88,.4);color:#e06858}
+.sheet-fav-btn.active{background:rgba(224,104,88,.18);border-color:rgba(224,104,88,.45);color:#e06858}
+.sheet-close-btn{
+  width:32px;height:32px;border-radius:50%;
+  background:var(--s2);border:1px solid var(--border);
+  color:var(--tx2);font-size:13px;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s,color .15s,border-color .15s;flex-shrink:0;
+}
+.sheet-close-btn:hover,.sheet-close-btn:active{background:var(--gold-dim);border-color:var(--gold-glow);color:var(--gold)}
+
+.sheet-rule{flex-shrink:0;height:1px;background:var(--border);margin:0 18px}
+
+.sheet-scroll{flex:1;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.sheet-scroll::-webkit-scrollbar{width:3px}
+.sheet-scroll::-webkit-scrollbar-track{background:transparent}
+.sheet-scroll::-webkit-scrollbar-thumb{background:var(--tx4);border-radius:2px}
+
+.sheet-img-block{position:relative;overflow:hidden;height:142px;flex-shrink:0}
+.sheet-img-block::after{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,transparent 35%,var(--s1) 100%)}
+.sheet-img-ph{width:100%;height:100%;background:var(--s2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.ph-ico{font-size:30px;opacity:.25}
+.ph-lbl{font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3)}
+.sheet-img-loading{width:100%;height:100%;background:linear-gradient(90deg,var(--s2) 25%,var(--s3) 50%,var(--s2) 75%);background-size:400% 100%;animation:img-shimmer 1.5s ease infinite}
+@keyframes img-shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
+.sheet-img-block img{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .35s ease}
+
+.sheet-story-wrap{padding:15px 18px 8px}
+.sheet-story{font-family:'Fraunces',serif;font-style:italic;font-size:15px;font-weight:300;line-height:1.78;color:rgba(237,233,208,.76)}
+
+.sheet-conns-wrap{padding:14px 18px 24px}
+.sheet-conns-lbl{font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--tx2);margin-bottom:10px}
+.conns-flex{display:flex;flex-wrap:wrap;gap:7px}
+.conn-chip{
+  display:flex;align-items:center;gap:5px;padding:7px 12px;
+  border-radius:var(--r-pill);background:var(--s2);border:1px solid var(--border);
+  font-size:12px;font-weight:400;color:var(--tx2);
+  transition:background .15s,border-color .15s,color .15s;
+  cursor:pointer;min-height:34px;
+}
+.conn-chip:hover,.conn-chip:active{background:var(--gold-dim);border-color:var(--gold-glow);color:var(--gold)}
+.conn-chip-ic{font-size:11px;opacity:.7}
+
+/* ══════════════════════════════════════════════════════
+   NAV PANELS (Discover / Favorites / Profile)
+══════════════════════════════════════════════════════ */
+#nav-panel{
+  position:fixed;
+  top:0;left:0;right:0;
+  bottom:calc(var(--nav-h) + var(--sab));
+  z-index:520;
+  background:var(--bg);
+  display:flex;flex-direction:column;
+  transform:translateY(100%);
+  transition:transform .42s var(--ease-s);
+  will-change:transform;
+}
+#nav-panel.open{transform:translateY(0)}
+
+.np-header{
+  padding:calc(var(--bar-h) + var(--sat) + 14px) 18px 14px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;
+  background:var(--s0);
+}
+.np-title{font-family:'Fraunces',serif;font-size:22px;font-weight:500;color:var(--tx)}
+.np-subtitle{font-size:12px;color:var(--tx2);margin-top:3px}
+.np-close{
+  width:34px;height:34px;border-radius:50%;
+  background:var(--s2);border:1px solid var(--border);
+  color:var(--tx2);font-size:13px;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s;flex-shrink:0;
+}
+.np-close:hover{background:var(--s3)}
+
+.np-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.np-body::-webkit-scrollbar{width:3px}
+.np-body::-webkit-scrollbar-track{background:transparent}
+.np-body::-webkit-scrollbar-thumb{background:var(--tx4);border-radius:2px}
+
+/* location card (used in discover + favorites) */
+.loc-card{
+  display:flex;align-items:center;gap:14px;
+  padding:12px 18px;border-bottom:1px solid var(--border);
+  cursor:pointer;transition:background .12s;
+}
+.loc-card:hover,.loc-card:active{background:var(--s1)}
+
+/* thumbnail photo in card */
+.lc-thumb{
+  width:68px;height:68px;border-radius:12px;flex-shrink:0;
+  overflow:hidden;background:var(--s2);
+  display:flex;align-items:center;justify-content:center;
+  position:relative;
+}
+.lc-thumb img{
+  width:100%;height:100%;object-fit:cover;display:block;
+  opacity:0;transition:opacity .3s;
+}
+.lc-thumb-ph{font-size:22px;opacity:.35}
+.lc-text{flex:1;min-width:0}
+.lc-name{font-size:13px;font-weight:500;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lc-cat{display:inline-flex;align-items:center;padding:2px 7px;border-radius:var(--r-pill);border:1px solid;font-size:9px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;margin-top:5px}
+.lc-star{font-size:18px;flex-shrink:0;color:var(--gold);opacity:.35;transition:opacity .15s}
+.lc-star.on{opacity:1}
+
+/* empty state */
+.np-empty{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:60px 32px;text-align:center;
+}
+.np-empty-icon{font-size:44px;opacity:.25;margin-bottom:14px}
+.np-empty-title{font-family:'Fraunces',serif;font-size:20px;font-weight:400;color:var(--tx2);margin-bottom:8px}
+.np-empty-text{font-size:13px;color:var(--tx3);line-height:1.6}
+
+/* ── About panel ── */
+.about-hero{
+  padding:36px 24px 28px;text-align:center;
+  border-bottom:1px solid var(--border);
+}
+.about-mark{
+  width:76px;height:76px;border-radius:50%;
+  background:var(--gold-dim);border:2px solid rgba(200,168,75,.4);
+  display:flex;align-items:center;justify-content:center;
+  font-size:34px;margin:0 auto 16px;
+}
+.about-app-name{
+  font-family:'Fraunces',serif;font-size:26px;font-weight:600;
+  color:var(--gold-hi);margin-bottom:10px;
+}
+.about-desc{
+  font-family:'Fraunces',serif;font-style:italic;font-size:15px;
+  font-weight:300;line-height:1.65;color:var(--tx2);
+  max-width:280px;margin:0 auto;
+}
+
+.about-stats{
+  display:flex;align-items:center;justify-content:center;
+  gap:0;padding:20px 24px;border-bottom:1px solid var(--border);
+}
+.about-stat{flex:1;text-align:center}
+.about-stat-div{width:1px;height:32px;background:var(--border);flex-shrink:0}
+.about-stat-num{
+  font-family:'Fraunces',serif;font-size:28px;font-weight:600;
+  color:var(--gold);line-height:1;
+}
+.about-stat-lbl{
+  font-size:10px;font-weight:500;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--tx2);margin-top:4px;
+}
+
+.about-section{
+  display:flex;align-items:flex-start;gap:14px;
+  padding:18px 20px;border-bottom:1px solid var(--border);
+}
+.about-section-icon{
+  width:38px;height:38px;border-radius:10px;
+  background:var(--s2);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;flex-shrink:0;margin-top:1px;
+}
+.about-section-title{
+  font-size:13px;font-weight:600;color:var(--tx);margin-bottom:5px;
+}
+.about-section-body{
+  font-size:13px;font-weight:300;line-height:1.65;
+  color:rgba(237,233,208,.6);
+}
+
+.about-footer{
+  padding:24px 24px 32px;text-align:center;
+}
+.about-footer-line{
+  font-size:12px;color:var(--tx2);letter-spacing:.05em;line-height:1.8;
+}
+
+
+/* ══════════════════════════════════════════════════════
+   BADGE COLOURS (shared)
+══════════════════════════════════════════════════════ */
+.badge-kosk,.lc-cat.kosk            {color:#c9a84c;border-color:rgba(201,168,76,.3);background:rgba(201,168,76,.07)}
+.badge-levanten-evi,.lc-cat.lev     {color:#9b74e8;border-color:rgba(155,116,232,.3);background:rgba(155,116,232,.07)}
+.badge-levanten-evleri              {color:#9b74e8;border-color:rgba(155,116,232,.3);background:rgba(155,116,232,.07)}
+.badge-dini-yapi,.lc-cat.dini       {color:#45c9c0;border-color:rgba(69,201,192,.3);background:rgba(69,201,192,.07)}
+.badge-egitim-dini-yapi             {color:#45c9c0;border-color:rgba(69,201,192,.3);background:rgba(69,201,192,.07)}
+.badge-altyapi,.lc-cat.alt          {color:#cee048;border-color:rgba(206,224,72,.3);background:rgba(206,224,72,.07)}
+.badge-meydan,.lc-cat.mey           {color:#e06858;border-color:rgba(224,104,88,.3);background:rgba(224,104,88,.07)}
+.badge-park,.lc-cat.park            {color:#5fbe5e;border-color:rgba(95,190,94,.3);background:rgba(95,190,94,.07)}
+.badge-muze,.lc-cat.muze            {color:#d96abc;border-color:rgba(217,106,188,.3);background:rgba(217,106,188,.07)}
+.badge-kutuphane,.lc-cat.kut        {color:#56a8e2;border-color:rgba(86,168,226,.3);background:rgba(86,168,226,.07)}
+.badge-kulturel-mekan,.lc-cat.kul   {color:#de9e38;border-color:rgba(222,158,56,.3);background:rgba(222,158,56,.07)}
+.badge-ulasim-tarihi,.lc-cat.ulas   {color:#52cce0;border-color:rgba(82,204,224,.3);background:rgba(82,204,224,.07)}
+.badge-anitsal-nokta,.lc-cat.anit   {color:#d2c846;border-color:rgba(210,200,70,.3);background:rgba(210,200,70,.07)}
+.badge-sembol-yapi,.lc-cat.semb     {color:#d8628a;border-color:rgba(216,98,138,.3);background:rgba(216,98,138,.07)}
+.badge-otel,.lc-cat.otel            {color:#bec068;border-color:rgba(190,192,104,.3);background:rgba(190,192,104,.07)}
+
+/* ══════════════════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════════════════ */
+@media (max-width:374px){
+  .tb-logo p{display:none}
+  #sheet{height:55vh}
+  .sheet-title{font-size:18px}
+}
+@media (min-width:600px){
+  :root{--nav-h:66px}
+  .sheet-title{font-size:22px}
+  .sheet-img-block{height:158px}
+}
+@media (min-width:768px){
+  .sheet-title{font-size:24px}
+  #nav-panel{top:0}
+}
+@media (min-width:1024px){
+  :root{--nav-h:68px}
+  #sheet{
+    bottom:calc(var(--nav-h) + var(--sab) + 20px);
+    border-radius:var(--r-lg);
+    border-bottom:1px solid var(--border-md);
+    max-height:52vh;
+  }
+  .sheet-title{font-size:25px}
+  .sheet-img-block{height:168px}
+  #zoom-wrap{right:calc(22px + var(--sar))}
+}
+
+/* ── USER LOCATION MARKER ── */
+.user-marker{width:40px;height:40px;position:relative;pointer-events:none}
+.user-dot{width:14px;height:14px;border-radius:50%;background:#4a9eff;border:2.5px solid #fff;box-shadow:0 2px 10px rgba(74,158,255,.7);position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
+.user-pulse{width:36px;height:36px;border-radius:50%;background:rgba(74,158,255,.22);position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);animation:user-pulse 2.2s ease-out infinite}
+@keyframes user-pulse{0%{transform:translate(-50%,-50%) scale(.5);opacity:1}100%{transform:translate(-50%,-50%) scale(1.8);opacity:0}}
+
+/* ── WAYPOINT MARKERS ── */
+.wp-marker{width:28px;height:28px;border-radius:50%;background:var(--gold);border:2.5px solid var(--bg);color:var(--bg);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(200,168,75,.6);font-family:'Outfit',sans-serif}
+
+/* ── FIND ME BUTTON ── */
+#find-me-btn{position:fixed;left:calc(14px + var(--sal));bottom:calc(var(--nav-h) + var(--sab) + 14px);z-index:400;display:flex;align-items:center;gap:7px;padding:9px 16px;background:rgba(9,9,11,.88);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--border-md);border-radius:var(--r-pill);color:var(--tx2);font-size:13px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.4);transition:border-color .18s,color .18s,background .18s;cursor:pointer}
+#find-me-btn:hover,#find-me-btn:active{border-color:rgba(74,158,255,.5);color:#4a9eff;background:rgba(74,158,255,.08)}
+#find-me-btn.locating{border-color:rgba(74,158,255,.5);color:#4a9eff;animation:find-pulse .9s ease infinite alternate}
+@keyframes find-pulse{to{opacity:.5}}
+
+/* ── ROUTE FAB ── */
+#route-fab{position:fixed;right:calc(14px + var(--sar));bottom:calc(var(--nav-h) + var(--sab) + 14px);z-index:400;display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--gold);border-radius:var(--r-pill);color:var(--bg);font-size:13px;font-weight:600;box-shadow:0 4px 24px rgba(200,168,75,.5);cursor:pointer;border:none;opacity:0;transform:translateY(8px);transition:opacity .28s var(--ease-o),transform .28s var(--ease-o);pointer-events:none}
+#route-fab.visible{opacity:1;transform:none;pointer-events:auto}
+#route-fab:hover{background:var(--gold-hi)}
+.route-fab-badge{background:var(--bg);color:var(--gold);font-size:11px;font-weight:700;border-radius:var(--r-pill);padding:1px 7px}
+
+/* ── ROUTE PANEL ── */
+#route-panel{position:fixed;left:0;right:0;bottom:calc(var(--nav-h) + var(--sab));z-index:505;max-width:560px;margin:0 auto;background:var(--s1);border:1px solid var(--border-md);border-bottom:none;border-radius:var(--r-lg) var(--r-lg) 0 0;box-shadow:0 -4px 40px rgba(0,0,0,.7);max-height:60vh;display:flex;flex-direction:column;transform:translateY(110%);transition:transform .42s var(--ease-s);will-change:transform;overflow:hidden}
+#route-panel.open{transform:translateY(0)}
+.rp-header{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:16px 18px 12px;border-bottom:1px solid var(--border)}
+.rp-title{font-family:'Fraunces',serif;font-size:18px;font-weight:500;color:var(--tx)}
+.rp-total{font-size:12px;color:var(--tx2);margin-top:2px}
+.rp-btns{display:flex;gap:8px;align-items:center}
+.rp-clear-btn{padding:6px 13px;border-radius:var(--r-pill);background:rgba(224,104,88,.12);border:1px solid rgba(224,104,88,.35);color:#e06858;font-size:12px;font-weight:500;cursor:pointer;transition:background .15s}
+.rp-clear-btn:hover{background:rgba(224,104,88,.22)}
+.rp-close-btn{width:30px;height:30px;border-radius:50%;background:var(--s2);border:1px solid var(--border);color:var(--tx2);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.rp-close-btn:hover{background:var(--s3)}
+.rp-list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.rp-list::-webkit-scrollbar{width:3px}
+.rp-list::-webkit-scrollbar-track{background:transparent}
+.rp-list::-webkit-scrollbar-thumb{background:var(--tx4);border-radius:2px}
+.route-item{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s}
+.route-item:hover,.route-item:active{background:var(--s2)}
+.ri-num{width:26px;height:26px;border-radius:50%;background:var(--gold-dim);border:1.5px solid var(--gold);color:var(--gold);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ri-body{flex:1;min-width:0}
+.ri-name{font-size:13px;font-weight:500;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ri-leg{font-size:11px;color:var(--tx2);margin-top:2px}
+.ri-del{width:28px;height:28px;border-radius:50%;background:var(--s2);border:1px solid var(--border);color:var(--tx3);font-size:12px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
+.ri-del:hover{background:rgba(224,104,88,.15);color:#e06858}
+.rp-empty{padding:40px 24px;text-align:center;color:var(--tx3);font-size:13px}
+
+/* ── SHEET: distance + route button ── */
+.s-dist{font-size:11px;color:#4a9eff;margin-top:4px;letter-spacing:.02em}
+.sheet-route-wrap{padding:10px 18px 2px}
+.sheet-route-btn{width:100%;padding:11px;border-radius:var(--r-pill);background:var(--gold-dim);border:1.5px solid rgba(200,168,75,.4);color:var(--gold-hi);font-size:13px;font-weight:600;cursor:pointer;transition:background .18s,border-color .18s}
+.sheet-route-btn:hover,.sheet-route-btn:active{background:rgba(200,168,75,.22);border-color:var(--gold)}
+.sheet-route-btn.in-route{background:rgba(224,104,88,.1);border-color:rgba(224,104,88,.4);color:#e06858}
+
+/* ── NEARBY SECTION ── */
+.nearby-section{background:var(--s0)}
+.nearby-header{display:flex;align-items:center;gap:8px;padding:12px 18px 6px}
+.nearby-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2)}
+.all-divider{padding:8px 18px 4px;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);border-top:1px solid var(--border);margin-top:2px}
+.lc-dist{font-size:10px;color:#4a9eff;margin-top:3px}
+
+/* ── LOCATION TOAST ── */
+#location-toast{position:fixed;top:calc(var(--bar-h) + var(--sat) + 10px);left:50%;transform:translateX(-50%) translateY(-8px);z-index:900;padding:10px 18px;background:rgba(14,14,17,.95);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--border-md);border-radius:var(--r-pill);font-size:13px;color:var(--tx);box-shadow:0 4px 20px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;white-space:nowrap;max-width:calc(100vw - 32px);text-align:center}
+#location-toast.visible{opacity:1;transform:translateX(-50%) translateY(0)}
+#location-toast.error{border-color:rgba(224,104,88,.4);color:#e06858}
+#location-toast.success{border-color:rgba(74,158,255,.4);color:#4a9eff}
+  </style>
+</head>
+<body>
+
+<!-- ══ MAP ══ -->
+<div id="map"></div>
+
+<!-- ══ TOP BAR ══ -->
+<header id="top-bar">
+  <button class="tb-hamburger" id="hamburger-btn" aria-label="Menü">
+    <span class="tb-ham-line"></span>
+    <span class="tb-ham-line"></span>
+    <span class="tb-ham-line"></span>
+  </button>
+  <div class="tb-logo">
+    <h1>BucaMap</h1>
+    <p>Discover hidden Buca</p>
+  </div>
+  <div class="tb-right"><span class="tb-loc-dot"></span></div>
+</header>
+
+<!-- ══ SEARCH BAR ══ -->
+<div id="search-wrap">
+  <div class="search-inner">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="search-input" placeholder="Konum ara…" autocomplete="off" spellcheck="false" />
+    <button class="search-clear" id="search-clear" aria-label="Temizle">✕</button>
+  </div>
+  <div id="search-results"></div>
+</div>
+
+<!-- ══ FILTER CHIPS ══ -->
+<div id="chips-wrap">
+  <button class="chip active" data-filter="all"><span class="chip-icon">🗺</span>Tümü</button>
+  <button class="chip" data-filter="kosk"><span class="chip-icon">🏛</span>Köşkler</button>
+  <button class="chip" data-filter="levanten"><span class="chip-icon">🏠</span>Levanten</button>
+  <button class="chip" data-filter="dini"><span class="chip-icon">⛪</span>Dini</button>
+  <button class="chip" data-filter="kultur"><span class="chip-icon">🏡</span>Kültür</button>
+  <button class="chip" data-filter="dogal"><span class="chip-icon">🌳</span>Yeşil Alan</button>
+  <button class="chip" data-filter="tarih"><span class="chip-icon">🚂</span>Tarih</button>
+</div>
+
+<!-- ══ ZOOM ══ -->
+<div id="zoom-wrap">
+  <button class="z-btn" id="btn-zi">+</button>
+  <button class="z-btn" id="btn-zo">−</button>
+</div>
+
+<!-- ══ DRAWER BACKDROP + DRAWER ══ -->
+<div id="drawer-backdrop"></div>
+<aside id="drawer" aria-label="Yan Menü">
+  <div class="drawer-top">
+    <div class="drawer-logo">
+      <div class="drawer-logo-mark">🗺</div>
+      <div class="drawer-logo-text">
+        <h2>BucaMap</h2>
+        <p>İzmir, Türkiye</p>
+      </div>
+    </div>
+    <button class="drawer-close" id="drawer-close-btn">✕</button>
+  </div>
+  <nav class="drawer-nav">
+    <div class="drawer-nav-item" id="dnav-discover">
+      <span class="dni-icon">🧭</span>
+      <span class="dni-label">Tüm Konumlar</span>
+      <span class="dni-count" id="dnav-total">22</span>
+    </div>
+    <div class="drawer-nav-item" id="dnav-categories">
+      <span class="dni-icon">🏷</span>
+      <span class="dni-label">Kategoriler</span>
+      <span class="dni-arrow">›</span>
+    </div>
+    <div class="drawer-nav-item" id="dnav-nearby">
+      <span class="dni-icon">📍</span>
+      <span class="dni-label">Yakınımda Keşfet</span>
+      <span class="dni-arrow">›</span>
+    </div>
+    <div class="drawer-nav-item" id="dnav-about">
+      <span class="dni-icon">ℹ️</span>
+      <span class="dni-label">Hakkında</span>
+      <span class="dni-arrow">›</span>
+    </div>
+  </nav>
+  <div class="drawer-section-title">TÜM KONUMLAR</div>
+  <div class="drawer-locs" id="drawer-locs-list"></div>
+</aside>
+
+<!-- ══ SHEET BACKDROP + BOTTOM SHEET ══ -->
+<div id="sheet-backdrop"></div>
+<div id="sheet" role="dialog" aria-modal="true">
+  <div class="sheet-handle-row" id="sheet-handle">
+    <div class="sheet-handle-bar"></div>
+  </div>
+  <div class="sheet-meta-row">
+    <div class="sheet-meta-left">
+      <div class="sheet-badge" id="s-badge"></div>
+      <div class="sheet-title" id="s-title"></div>
+      <div class="sheet-name"  id="s-name"></div>
+      <div class="s-dist"      id="s-dist"  style="display:none"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="sheet-fav-btn" id="sheet-fav-btn" title="Favorilere ekle">☆</button>
+      <button class="sheet-close-btn" id="sheet-close-btn">✕</button>
+    </div>
+  </div>
+  <div class="sheet-rule"></div>
+  <div class="sheet-scroll" id="sheet-scroll">
+    <div class="sheet-img-block" id="s-img"></div>
+    <div class="sheet-story-wrap"><p class="sheet-story" id="s-story"></p></div>
+    <div class="sheet-route-wrap">
+      <button class="sheet-route-btn" id="sheet-route-btn">+ Rotaya Ekle</button>
+    </div>
+    <div id="s-conns" style="display:none" class="sheet-conns-wrap">
+      <div class="sheet-conns-lbl">Bağlantılı Noktalar</div>
+      <div class="conns-flex" id="s-conns-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ NAV PANEL (Discover / Favorites / Profile) ══ -->
+<div id="nav-panel">
+  <div class="np-header">
+    <div>
+      <div class="np-title" id="np-title">Keşfet</div>
+      <div class="np-subtitle" id="np-subtitle">Tüm tarihi noktalar</div>
+    </div>
+    <button class="np-close" id="np-close-btn">✕</button>
+  </div>
+  <div class="np-body" id="np-body"></div>
+</div>
+
+<!-- ══ BOTTOM NAV ══ -->
+<nav id="bottom-nav">
+  <button class="nav-tab active" data-tab="map">
+    <span class="nav-tab-icon">🗺</span>
+    <span class="nav-tab-label">Harita</span>
+  </button>
+  <button class="nav-tab" data-tab="discover">
+    <span class="nav-tab-icon">🧭</span>
+    <span class="nav-tab-label">Keşfet</span>
+  </button>
+  <button class="nav-tab" data-tab="favorites">
+    <span class="nav-tab-icon">☆</span>
+    <span class="nav-tab-label">Favoriler</span>
+    <span class="nav-fav-badge" id="fav-badge">0</span>
+  </button>
+  <button class="nav-tab" data-tab="profile">
+    <span class="nav-tab-icon">🏛</span>
+    <span class="nav-tab-label">Hakkında</span>
+  </button>
+</nav>
+
+<!-- ══ FIND ME BUTTON ══ -->
+<button id="find-me-btn" aria-label="Konumumu bul">
+  <span style="font-size:15px">◎</span>
+  <span>Beni Bul</span>
+</button>
+
+<!-- ══ ROUTE FAB ══ -->
+<button id="route-fab" aria-label="Rotayı aç">
+  <span style="font-size:15px">🗺</span>
+  <span>Rota</span>
+  <span class="route-fab-badge" id="route-fab-count">0</span>
+</button>
+
+<!-- ══ ROUTE PANEL ══ -->
+<div id="route-panel" role="dialog" aria-label="Rota">
+  <div class="rp-header">
+    <div>
+      <div class="rp-title">Rota Planı</div>
+      <div class="rp-total" id="route-total">Henüz konum seçilmedi</div>
+    </div>
+    <div class="rp-btns">
+      <button class="rp-clear-btn" id="route-clear-btn">Temizle</button>
+      <button class="rp-close-btn" id="route-panel-close">✕</button>
+    </div>
+  </div>
+  <div class="rp-list" id="route-list"></div>
+</div>
+
+<!-- ══ LOCATION TOAST ══ -->
+<div id="location-toast" role="status"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ════════════════════════════════════════════════════
+   1. DATA
+════════════════════════════════════════════════════ */
+const LOCS = [
+  {"id":"kizilcullu-su-kemerleri","name":"Kızılçullu Su Kemerleri","category":"altyapi","title":"Suyun izini taşıyan taş kemerler","story":"Bu kemerler, geçmişte suyun ne kadar değerli olduğunu hatırlatır. Yüzyıllar önce inşa edilen bu yapı, uzak kaynaklardan suyu Buca'ya taşıyordu. Bugün sessizce ayakta duran kemerler, eski mühendisliğin ve sabrın bir göstergesi.","lat":38.393675,"lng":27.138019,"image":"images/kizilcullu-su-kemerleri.jpg","connections":["dokuzcesmeler","buca-tren-istasyonu","muradiye-camii"],"discovered":false},
+  {"id":"yoruk-ali-efe-kulesi","name":"Yörük Ali Efe Parkı Kulesi","category":"sembol-yapi","title":"Buca'nın modern simgelerinden biri","story":"Parkın içinde yükselen dikkat çekici bir simge olan bu kule, bulunduğu çevreyle birlikte Buca'nın hafızasında yer edinmiştir. Özellikle gençler için buluşma ve fotoğraf noktası haline gelen yapı, semtin modern katmanlarından birini temsil eder.","lat":38.387719,"lng":27.159519,"image":"images/yoruk-ali-efe-kulesi.jpg","connections":["mevlana-heykeli","hasanaga-bahcesi","kasaplar-meydani"],"discovered":false},
+  {"id":"buca-kiz-kulesi","name":"Buca Kız Kulesi","category":"sembol-yapi","title":"Buca'yı izleyen tarihi gözetleme kulesi","story":"Buca'nın tepelerinde yükselen bu kule, semtin siluetine güçlü bir kimlik katar. Çevresindeki bağ ve bahçelerin ortasında tarihsel dönüşümün sessiz tanığı olan yapı, bugün de bölge sakinlerinin hafızasında özel bir yer tutmaya devam etmektedir.","lat":38.395192,"lng":27.164808,"image":"images/buca-kiz-kulesi.jpg","connections":["yoruk-ali-efe-kulesi","mevlana-heykeli"],"discovered":false},
+  {"id":"mevlana-heykeli","name":"Tıngırtepe Mevlana Heykeli","category":"anitsal-nokta","title":"Yüksekten bakan sessiz bir sembol","story":"Buca'nın yüksek noktalarından birinde yer alan bu heykel, sadece bir anıt değil aynı zamanda güçlü bir manzara noktasıdır. Buraya çıkan biri, hem çevreyi seyreder hem de bulunduğu yerin manevi havasını hisseder. Günlük hayatın gürültüsünden uzak, kısa bir durak gibidir.","lat":38.391806,"lng":27.176861,"image":"images/mevlana-heykeli.jpg","connections":["yoruk-ali-efe-kulesi","hasanaga-bahcesi","mubadele-evi"],"discovered":false},
+  {"id":"kasaplar-meydani","name":"Kasaplar Meydanı","category":"meydan","title":"Eski Buca'nın gündelik ritmi","story":"Buca'nın eski günlerinde bu meydan, sadece alışveriş yapılan bir yer değildi. İnsanlar burada buluşur, sohbet eder ve mahallenin gündelik hayatı burada akardı. Bugün çevresi değişmiş olsa da, geçmişin sosyal hafızasını hâlâ taşır.","lat":38.388208,"lng":27.174717,"image":"images/kasaplar-meydani.jpg","connections":["mubadele-evi","cumhuriyet-kutuphanesi","hasanaga-bahcesi"],"discovered":false},
+  {"id":"osman-nuri-saygin-kutuphanesi","name":"Osman Nuri Saygın Halk Kütüphanesi","category":"kutuphane","title":"Bilginin modern yüzü","story":"Buca'nın kültürel hayatında önemli yer tutan bu kütüphane, geçmişten bugüne öğrenme fikrinin yaşayan örneklerinden biridir. Tarihi köşkler ve eski sokaklar arasında, bugünün öğrencileri ve araştırmacıları için yeni bir buluşma alanı oluşturur. Bu yönüyle Buca'nın geçmişiyle bugünü arasında sessiz bir köprü kurar.","lat":38.393803,"lng":27.175522,"image":"images/osman-nuri-saygin-kutuphanesi.webp","connections":["cumhuriyet-kutuphanesi","kasaplar-meydani","mubadele-evi"],"discovered":false},
+  {"id":"mubadele-evi","name":"Göç ve Mübadele Anı Evi","category":"kulturel-mekan","title":"Bir göçün sessiz tanığı","story":"1923 yılında gerçekleşen nüfus mübadelesi, birçok insanın hayatını kökten değiştirdi. Bu ev, yer değiştirmek zorunda kalan ailelerin hafızasını temsil eder. Duvarları sadece bir taşınmayı değil, ardında bırakılan yaşamları ve yeni başlangıçları da hatırlatır.","lat":38.388050,"lng":27.175019,"image":"images/mubadele-evi.jpg","connections":["kasaplar-meydani","buca-tren-istasyonu","cumhuriyet-kutuphanesi"],"discovered":false},
+  {"id":"caporal-evi","name":"Caporal Evi","category":"levanten-evi","title":"1911'den kalan zarif bir iz","story":"1911 yılında yapılan bu yapı, Buca'daki Levanten hayatın son dönemlerine tanıklık etti. O yıllarda köşkler ve büyük evler yalnızca yaşam alanı değil, aynı zamanda sosyal statünün bir göstergesiydi. Caporal Evi, bu yaşam tarzının izlerini günümüze taşıyan nadir yapılardan biridir.","lat":38.387306,"lng":27.173989,"image":"images/caporal-evi.jpg","connections":["forbes-kosku","russo-kosku","apack-evi","baris-manco-sokagi"],"discovered":false},
+  {"id":"apack-evi","name":"Apack Evi","category":"levanten-evi","title":"Sade ama güçlü bir Levanten izi","story":"1910'da inşa edilen bu ev, Buca'daki Levanten mimarisinin daha sade ama zarif örneklerinden biridir. Büyük köşklerin görkemi kadar dikkat çekmese de, içerdiği yaşam kültürü Avrupa etkisinin Buca'daki izlerini yansıtır. Bu evler, semtin bir zamanlar ne kadar kozmopolit olduğunu anlatır.","lat":38.387197,"lng":27.174197,"image":"images/apack-evi.jpg","connections":["caporal-evi","russo-kosku","forbes-kosku","baris-manco-sokagi"],"discovered":false},
+  {"id":"russo-kosku","name":"Russo Köşkü","category":"kosk","title":"Avrupa tarzı yaşamın Buca'daki yansıması","story":"Russo ailesi, Buca'nın Levanten geçmişinin önemli parçalarından biriydi. Bu köşk, Avrupa tarzı yaşamın İzmir'e nasıl taşındığını gösteren etkileyici örneklerden biri olarak yükseldi. Yüksek tavanları ve geniş pencereleriyle dönemin zenginliğini hâlâ hissettirir.","lat":38.387517,"lng":27.173489,"image":"images/russo-kosku.jpg","connections":["forbes-kosku","caporal-evi","apack-evi","lipovats-kosku"],"discovered":false},
+  {"id":"manoli-otel","name":"Hotel Maloni","category":"otel","title":"Eski buluşmaların konaklama noktası","story":"Geçmişte konaklama amacıyla kullanılan bu yapı, Buca'nın eski sosyal hayatına dair önemli ipuçları taşır. Yolcuların, misafirlerin ve farklı çevrelerden insanların uğradığı bu tür yapılar, semtin hareketli günlerinin bir parçasıydı. Hotel Maloni de bu geçmişin sessiz tanıklarından biri sayılır.","lat":38.387239,"lng":27.174411,"image":"images/manoli-otel.jpg","connections":["forbes-kosku","latin-katolik-kilisesi","baris-manco-sokagi"],"discovered":false},
+  {"id":"latin-katolik-kilisesi","name":"Latin Katolik Kilisesi","category":"dini-yapi","title":"1840'tan beri çok kültürlü yaşamın merkezi","story":"1840 yılında inşa edilen bu kilise, Buca'da yaşayan Levanten topluluğun dini hayatının merkezlerinden biriydi. Pazar günleri burada toplanan insanlar yalnızca ibadet etmiyor, aynı zamanda sosyal bağlarını da güçlendiriyordu. Yapı, Buca'nın çok kültürlü geçmişini en net gösteren yerlerden biridir.","lat":38.386922,"lng":27.173708,"image":"images/latin-katolik-kilisesi.jpg","connections":["protestan-kilisesi","papaz-okulu","forbes-kosku","manoli-otel"],"discovered":false},
+  {"id":"lipovats-kosku","name":"Lipovats Köşkü","category":"kosk","title":"Bahçesiyle öne çıkan sessiz ihtişam","story":"Geniş bahçesi ve dikkat çekici mimarisiyle bu köşk, Levanten yaşamın ihtişamını yansıtır. Burada yaşayan aileler, hem ticaret hem de sosyal hayatın merkezinde yer alıyordu. Köşk, o dönemin yaşam tarzını bugüne taşıyan sakin ama güçlü bir tanık gibidir.","lat":38.386450,"lng":27.173047,"image":"images/lipovats-kosku.webp","connections":["forbes-kosku","russo-kosku","caporal-evi","baris-manco-sokagi"],"discovered":false},
+  {"id":"muradiye-camii","name":"Muradiye Camii","category":"dini-yapi","title":"Buca'nın Osmanlı izlerinden biri","story":"Buca'daki önemli ibadet yapılarından biri olan Muradiye Camii, semtin Osmanlı dönemindeki dini yaşamına ışık tutar. Çevresindeki yerleşimle birlikte düşünüldüğünde, Buca'nın sadece Levanten yapılardan ibaret olmadığını da gösterir. Bu yönüyle semtin çok katmanlı tarihinin önemli parçalarındandır.","lat":38.385547,"lng":27.173669,"image":"images/muradiye-camii.jpg","connections":["dokuzcesmeler","kizilcullu-su-kemerleri","kasaplar-meydani"],"discovered":false},
+  {"id":"papaz-okulu","name":"Kapusen Papaz Okulu","category":"egitim-dini-yapi","title":"İnanç ve eğitimin buluştuğu yer","story":"Geçmişte dini eğitim verilen bu yapı, Buca'daki Katolik topluluğun önemli merkezlerinden biri olmuştu. Burada yalnızca din eğitimi değil, bir yaşam biçiminin ve kültürel düzenin devamı da sağlanıyordu. Bu yüzden yapı, Buca'nın eğitim ve inanç tarihini birlikte taşıyan özel noktalardan biridir.","lat":38.387069,"lng":27.177075,"image":"images/papaz-okulu.webp","connections":["latin-katolik-kilisesi","protestan-kilisesi","forbes-kosku"],"discovered":false},
+  {"id":"cumhuriyet-kutuphanesi","name":"Cumhuriyet Kütüphanesi","category":"kutuphane","title":"Mahallenin bilgi hafızası","story":"Buca'nın kültürel gelişimine katkı sağlayan bu kütüphane, bölge halkı için bilgiye erişim noktalarından biri olmuştur. Tarihi yapılar arasında konumlanan bu tür mekânlar, geçmişi yalnızca korumaz; yeni nesillerin onu yeniden okumasına da imkân tanır. Bu yüzden Cumhuriyet Kütüphanesi, semtin yaşayan kültür damarlarından biridir.","lat":38.387239,"lng":27.175986,"image":"images/cumhuriyet-kutuphanesi.jpg","connections":["osman-nuri-saygin-kutuphanesi","kasaplar-meydani","mubadele-evi"],"discovered":false},
+  {"id":"protestan-kilisesi","name":"Protestan Baptist Kilisesi","category":"dini-yapi","title":"Buca'nın çok sesli inanç haritası","story":"Bu yapı, farklı inançların bir arada yaşadığı Buca'nın çok kültürlü yapısını temsil eden önemli dini yapılardan biridir. Semtte yaşayan yabancı ve Levanten toplulukların izleri, bu kilisenin çevresinde daha da görünür hale gelir. Buca'nın kozmopolit geçmişini anlamak isteyen biri için önemli bir duraktır.","lat":38.386389,"lng":27.176981,"image":"images/protestan-kilisesi.jpg","connections":["latin-katolik-kilisesi","papaz-okulu","forbes-kosku"],"discovered":false},
+  {"id":"forbes-kosku","name":"Forbes Köşkü","category":"kosk","title":"Levanten yaşamın kalbi","story":"19. yüzyılda Buca, Levanten tüccarların gözde yerleşimlerinden biriydi. Forbes ailesi de bu hareketli ticaret döneminde burada görkemli bir köşk inşa etti. Bu yapı yalnızca bir ev değil, Avrupa ile İzmir arasındaki ticari bağların da sembollerinden biriydi; bahçesinde verilen davetler farklı kültürlerin buluşmasına sahne olurdu.","lat":38.384664,"lng":27.164756,"image":"images/forbes-kosku.jpg","connections":["russo-kosku","caporal-evi","lipovats-kosku","baris-manco-sokagi","latin-katolik-kilisesi"],"discovered":false},
+  {"id":"dokuzcesmeler","name":"Dokuzçeşmeler Meydanı","category":"meydan","title":"Suyun mahalleye dağıldığı eski düzen","story":"Adını üzerindeki çok sayıdaki çeşmeden alan bu yapı, geçmişte su ihtiyacını karşılamak için kullanılıyordu. Günümüzde sıradan bir durak gibi görülebilir ama eski yerleşimlerin altyapı mantığını anlamak için oldukça değerlidir. Buca'nın gündelik yaşamı bir zamanlar bu tür su yapıları etrafında şekilleniyordu.","lat":38.386397,"lng":27.179947,"image":"images/dokuzcesmeler.jpg","connections":["muradiye-camii","kizilcullu-su-kemerleri","kasaplar-meydani"],"discovered":false},
+  {"id":"bayrak-muzesi","name":"Bayrak Bilim ve Türk Bayrakları Müzesi","category":"muze","title":"Sembolün hafızasını taşıyan özel bir durak","story":"Türk bayrağına adanmış nadir müzelerden biri olan bu yapı, milli değerlerin anlatıldığı özel bir kültürel noktadır. Buca'nın tarihi çeşitliliği içinde bu müze, daha yakın döneme ait kolektif hafızayı temsil eder. Bu yönüyle semtin yalnızca mimari değil, simgesel belleğinde de yer tutar.","lat":38.386272,"lng":27.180389,"image":"images/bayrak-muzesi.jpg","connections":["hasanaga-bahcesi","buca-tren-istasyonu","kasaplar-meydani"],"discovered":false},
+  {"id":"hasanaga-bahcesi","name":"Hasanağa Bahçesi","category":"park","title":"Buca'nın nefes aldığı sosyal alan","story":"Geçmişte bağlar ve bahçelerle anılan Buca'nın en önemli sosyal alanlarından biri Hasanağa Bahçesi'ydi. İnsanlar burada dinlenir, sohbet eder ve gündelik kalabalıktan uzaklaşırdı. Bugün de o eski sosyal ruhun izlerini taşımaya devam eder.","lat":38.382956,"lng":27.179500,"image":"images/hasanaga-bahcesi.jpg","connections":["kasaplar-meydani","bayrak-muzesi","yoruk-ali-efe-kulesi"],"discovered":false},
+  {"id":"buca-tren-istasyonu","name":"Buca Eski Tren İstasyonu","category":"ulasim-tarihi","title":"Buca'nın dış dünyaya açılan kapısı","story":"Tren yollarının altın çağında, bu istasyon Buca'nın dış dünyaya açılan kapılarından biriydi. Yolcular, tüccarlar ve öğrenciler bu noktadan geçerek semte hareket katıyordu. Zamanla trenlerin sesi azalsa da yapı, geçmişin canlı ulaşım günlerini hatırlatmaya devam ediyor.","lat":38.385858,"lng":27.170194,"image":"images/buca-tren-istasyonu.jpg","connections":["mubadele-evi","bayrak-muzesi","kizilcullu-su-kemerleri"],"discovered":false},
+  {"id":"baris-manco-sokagi","name":"Barış Manço Sokağı","category":"levanten-evleri","title":"Bir sokak boyunca uzanan kozmopolit hafıza","story":"Bu sokakta yürürken yalnızca evlere bakmazsın; bir dönemin izlerini görürsün. Avrupa tarzı cepheler, geniş pencereler ve detaylı süslemeler Buca'nın bir zamanlar ne kadar uluslararası bir yaşam alanı olduğunu anlatır. Sokak, semtin Levanten karakterini en doğrudan hissettiren yerlerden biridir.","lat":38.384653,"lng":27.171481,"image":"images/baris-manco-sokagi.jpeg","connections":["forbes-kosku","caporal-evi","apack-evi","russo-kosku","manoli-otel"],"discovered":false}
+];
+
+/* ════════════════════════════════════════════════════
+   2. CATEGORY META
+════════════════════════════════════════════════════ */
+const CAT = {
+  'kosk':               {icon:'🏛',label:'Köşk'},
+  'levanten-evi':       {icon:'🏠',label:'Levanten Evi'},
+  'levanten-evleri':    {icon:'🏘',label:'Levanten Evleri'},
+  'dini-yapi':          {icon:'⛪',label:'Dini Yapı'},
+  'egitim-dini-yapi':   {icon:'📿',label:'Eğitim & Din'},
+  'altyapi':            {icon:'🌊',label:'Altyapı'},
+  'meydan':             {icon:'🏙',label:'Meydan'},
+  'park':               {icon:'🌳',label:'Park'},
+  'muze':               {icon:'🏺',label:'Müze'},
+  'kutuphane':          {icon:'📚',label:'Kütüphane'},
+  'kulturel-mekan':     {icon:'🏡',label:'Kültürel Mekân'},
+  'ulasim-tarihi':      {icon:'🚂',label:'Ulaşım Tarihi'},
+  'anitsal-nokta':      {icon:'🗿',label:'Anıtsal Nokta'},
+  'sembol-yapi':        {icon:'🗼',label:'Sembol Yapı'},
+  'otel':               {icon:'🏨',label:'Otel'},
+};
+const cm = c => CAT[c] || {icon:'📍',label:c};
+
+/* filter chip → category ids */
+const FILTERS = {
+  all:      null,
+  kosk:     ['kosk'],
+  levanten: ['levanten-evi','levanten-evleri'],
+  dini:     ['dini-yapi','egitim-dini-yapi'],
+  kultur:   ['kulturel-mekan','muze','kutuphane'],
+  dogal:    ['park'],
+  tarih:    ['ulasim-tarihi','altyapi','anitsal-nokta','sembol-yapi','meydan','otel'],
+};
+
+const byId = Object.fromEntries(LOCS.map(l=>[l.id,l]));
+
+/* Load favorites from localStorage; gracefully fall back to empty set */
+function loadFavorites() {
+  try { return new Set(JSON.parse(localStorage.getItem('bucamap-favs') || '[]')); }
+  catch { return new Set(); }
+}
+function saveFavorites() {
+  try { localStorage.setItem('bucamap-favs', JSON.stringify([...favorites])); }
+  catch { /* storage unavailable — silently ignore */ }
+}
+let favorites = loadFavorites();
+let activeFilter = 'all';
+let activePin = null;
+let currentLoc = null;
+let activeNavTab = 'map';
+let activeNpTab = null; // 'discover' | 'favorites' | 'profile'
+
+/* ════════════════════════════════════════════════════
+   3. MAP
+════════════════════════════════════════════════════ */
+const map = L.map('map',{zoomControl:false});
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+  attribution:'© <a href="https://openstreetmap.org/copyright">OSM</a> © <a href="https://carto.com/attributions">CARTO</a>',
+  subdomains:'abcd',maxZoom:19
+}).addTo(map);
+map.fitBounds(L.latLngBounds(LOCS.map(l=>[l.lat,l.lng])),{padding:[72,72]});
+
+/* ════════════════════════════════════════════════════
+   4. MARKERS
+════════════════════════════════════════════════════ */
+const markerMap = {}; // id → {marker, el}
+
+LOCS.forEach(loc=>{
+  const cat  = loc.category||'default';
+  const meta = cm(cat);
+  const icon = L.divIcon({
+    className:'',
+    html:`<div class="bm-pin cat-${cat}" id="pin-${loc.id}"><div class="bm-pin-dot"><span class="bm-pin-icon">${meta.icon}</span></div></div>`,
+    iconSize:[44,44],iconAnchor:[22,44],popupAnchor:[0,-44],
+  });
+  const marker = L.marker([loc.lat,loc.lng],{icon}).addTo(map);
+  marker.on('click',e=>{L.DomEvent.stopPropagation(e);openSheet(loc)});
+  markerMap[loc.id] = {marker};
+});
+
+/* apply filter — show/hide markers */
+function applyFilter(filterId){
+  activeFilter = filterId;
+  const cats = FILTERS[filterId];
+  LOCS.forEach(loc=>{
+    const el = document.getElementById(`pin-${loc.id}`);
+    if(!el) return;
+    const show = !cats || cats.includes(loc.category);
+    el.classList.toggle('filtered-out',!show);
+  });
+  // update chip UI
+  document.querySelectorAll('.chip').forEach(c=>{
+    c.classList.toggle('active', c.dataset.filter === filterId);
+  });
+}
+
+/* ════════════════════════════════════════════════════
+   5. BOTTOM SHEET
+════════════════════════════════════════════════════ */
+const sheet     = document.getElementById('sheet');
+const sheetBd   = document.getElementById('sheet-backdrop');
+const sBadge    = document.getElementById('s-badge');
+const sTitle    = document.getElementById('s-title');
+const sName     = document.getElementById('s-name');
+const sImg      = document.getElementById('s-img');
+const sStory    = document.getElementById('s-story');
+const sConns    = document.getElementById('s-conns');
+const sConnList = document.getElementById('s-conns-list');
+const sFavBtn   = document.getElementById('sheet-fav-btn');
+
+/* ── Image resolver: tries multiple extensions in order ── */
+const IMG_EXTS = ['jpg', 'jpeg', 'webp', 'png'];
+
+/* Build extension probe order — stored extension goes first to avoid wasted requests */
+function imgExtsFor(loc) {
+  if (loc.image) {
+    const m = loc.image.match(/\.([^./]+)$/);
+    if (m) {
+      const known = m[1].toLowerCase();
+      return [known, ...IMG_EXTS.filter(e => e !== known)];
+    }
+  }
+  return IMG_EXTS;
+}
+
+function tryLoadImage(basePath, exts, onSuccess, onFail) {
+  const queue = [...exts];
+  function attempt() {
+    if (!queue.length) { onFail(); return; }
+    const url = `${basePath}.${queue.shift()}`;
+    const probe = new Image();
+    probe.onload  = () => onSuccess(url);
+    probe.onerror = attempt;
+    probe.src = url;
+  }
+  attempt();
+}
+
+/* Derive base path (no extension) from a location object */
+function imgBase(loc) {
+  if (loc.image && loc.image.length) {
+    // strip any existing extension so we can probe all formats
+    return loc.image.replace(/\.[^./]+$/, '');
+  }
+  // fall back to id-based path
+  return `images/${loc.id}`;
+}
+
+/* Unified resolver used by both the sheet and discover cards */
+function resolveImgArgs(loc) {
+  return { base: imgBase(loc), exts: imgExtsFor(loc) };
+}
+
+function openSheet(loc){
+  currentLoc = loc;
+  // pin highlight
+  if(activePin) activePin.classList.remove('active');
+  const pinEl = document.getElementById(`pin-${loc.id}`);
+  if(pinEl){pinEl.classList.add('active');activePin=pinEl;}
+
+  const cat  = loc.category||'default';
+  const meta = cm(cat);
+  sBadge.className = `sheet-badge badge-${cat}`;
+  sBadge.innerHTML = `<span>${meta.icon}</span>${meta.label}`;
+  sTitle.textContent = loc.title||loc.name;
+  sName.textContent  = loc.name;
+  sStory.textContent = loc.story||'';
+
+  // Show shimmer while probing, then swap in real image or placeholder
+  sImg.innerHTML = '<div class="sheet-img-loading"></div>';
+  const snapLoc = loc; // capture for async closure
+  tryLoadImage(
+    imgBase(loc),
+    imgExtsFor(loc),
+    url => {
+      // Guard: panel may have been closed or switched before load finished
+      if (currentLoc !== snapLoc) return;
+      sImg.innerHTML = '';
+      const img = document.createElement('img');
+      img.alt = loc.name;
+      img.src = url;
+      img.onload = () => { img.style.opacity = '1'; };
+      // In case onload already fired (cached image):
+      if (img.complete) img.style.opacity = '1';
+      sImg.appendChild(img);
+    },
+    () => {
+      if (currentLoc !== snapLoc) return;
+      sImg.innerHTML = `<div class="sheet-img-ph"><span class="ph-ico">${meta.icon}</span><span class="ph-lbl">${meta.label}</span></div>`;
+    }
+  );
+
+  if(loc.connections&&loc.connections.length){
+    sConnList.innerHTML='';
+    loc.connections.forEach(cid=>{
+      const c=byId[cid];if(!c)return;
+      const cMeta=cm(c.category);
+      const chip=document.createElement('button');
+      chip.className='conn-chip';
+      chip.innerHTML=`<span class="conn-chip-ic">${cMeta.icon}</span>${c.name}`;
+      chip.addEventListener('click',()=>openSheet(c));
+      sConnList.appendChild(chip);
+    });
+    sConns.style.display='block';
+  } else {sConns.style.display='none';}
+
+  // favorite btn state
+  updateFavBtn(loc.id);
+
+  document.getElementById('sheet-scroll').scrollTop=0;
+  sheet.classList.add('open');
+  sheetBd.classList.add('active');
+
+  // close nav panel if open
+  closeNavPanel();
+}
+
+function updateFavBtn(id){
+  const isFav = favorites.has(id);
+  sFavBtn.textContent = isFav ? '★' : '☆';
+  sFavBtn.classList.toggle('active', isFav);
+  sFavBtn.title = isFav ? 'Favorilerden çıkar' : 'Favorilere ekle';
+}
+
+sFavBtn.addEventListener('click',()=>{
+  if(!currentLoc) return;
+  if(favorites.has(currentLoc.id)) favorites.delete(currentLoc.id);
+  else favorites.add(currentLoc.id);
+  saveFavorites();
+  updateFavBtn(currentLoc.id);
+  updateFavBadge();
+  if(activeNpTab==='favorites') renderNpFavorites();
+});
+
+function closeSheet(){
+  sheet.classList.remove('open');
+  sheetBd.classList.remove('active');
+  if(activePin){activePin.classList.remove('active');activePin=null;}
+  currentLoc=null;
+}
+
+document.getElementById('sheet-close-btn').addEventListener('click',closeSheet);
+sheetBd.addEventListener('click',closeSheet);
+map.on('click',closeSheet);
+
+/* swipe to dismiss */
+(()=>{
+  const handle=document.getElementById('sheet-handle');
+  let sy=0,cy=0,active=false;
+  const start=e=>{active=true;sy=cy=(e.touches?e.touches[0].clientY:e.clientY);sheet.style.transition='none';};
+  const move=e=>{if(!active)return;cy=(e.touches?e.touches[0].clientY:e.clientY);const d=Math.max(0,cy-sy);sheet.style.transform=`translateY(${d}px)`;};
+  const end=()=>{if(!active)return;active=false;sheet.style.transition='';if(cy-sy>88){sheet.style.transform='';closeSheet();}else{sheet.style.transform='';}};
+  handle.addEventListener('touchstart',start,{passive:true});
+  handle.addEventListener('touchmove',move,{passive:true});
+  handle.addEventListener('touchend',end);
+  handle.addEventListener('mousedown',start);
+  window.addEventListener('mousemove',move);
+  window.addEventListener('mouseup',end);
+})();
+
+/* ════════════════════════════════════════════════════
+   6. FILTER CHIPS
+════════════════════════════════════════════════════ */
+document.querySelectorAll('.chip').forEach(chip=>{
+  chip.addEventListener('click',()=>{
+    applyFilter(chip.dataset.filter);
+    if(sheet.classList.contains('open')) closeSheet();
+  });
+});
+
+/* ════════════════════════════════════════════════════
+   7. SEARCH
+════════════════════════════════════════════════════ */
+const searchInput   = document.getElementById('search-input');
+const searchClear   = document.getElementById('search-clear');
+const searchResults = document.getElementById('search-results');
+
+searchInput.addEventListener('input',()=>{
+  const q = searchInput.value.trim().toLowerCase();
+  searchClear.classList.toggle('visible', q.length>0);
+  if(!q){searchResults.classList.remove('visible');searchResults.innerHTML='';return;}
+  const matches = LOCS.filter(l=>
+    l.name.toLowerCase().includes(q)||
+    (l.title&&l.title.toLowerCase().includes(q))
+  );
+  if(!matches.length){
+    searchResults.innerHTML='<div class="sr-empty">Sonuç bulunamadı</div>';
+    searchResults.classList.add('visible');
+    return;
+  }
+  searchResults.innerHTML = matches.slice(0,6).map(l=>{
+    const meta=cm(l.category);
+    return `<div class="sr-item" data-id="${l.id}">
+      <span class="sr-icon">${meta.icon}</span>
+      <div class="sr-text">
+        <div class="sr-name">${l.name}</div>
+        <div class="sr-cat">${meta.label}</div>
+      </div>
+    </div>`;
+  }).join('');
+  searchResults.classList.add('visible');
+
+  searchResults.querySelectorAll('.sr-item').forEach(item=>{
+    item.addEventListener('click',()=>{
+      const loc = byId[item.dataset.id];
+      if(!loc) return;
+      // zoom to location
+      map.setView([loc.lat,loc.lng],17,{animate:true});
+      // open sheet
+      setTimeout(()=>openSheet(loc),300);
+      // clear search
+      searchInput.value='';
+      searchClear.classList.remove('visible');
+      searchResults.classList.remove('visible');
+    });
+  });
+});
+
+searchClear.addEventListener('click',()=>{
+  searchInput.value='';
+  searchClear.classList.remove('visible');
+  searchResults.classList.remove('visible');
+  searchInput.focus();
+});
+
+// close search results when clicking map
+document.getElementById('map').addEventListener('click',()=>{
+  searchResults.classList.remove('visible');
+  searchInput.blur();
+});
+
+/* ════════════════════════════════════════════════════
+   8. BOTTOM NAV + NAV PANEL
+════════════════════════════════════════════════════ */
+const navPanel    = document.getElementById('nav-panel');
+const npTitle     = document.getElementById('np-title');
+const npSubtitle  = document.getElementById('np-subtitle');
+const npBody      = document.getElementById('np-body');
+
+function setNavTab(tab){
+  document.querySelectorAll('.nav-tab').forEach(t=>{
+    t.classList.toggle('active', t.dataset.tab===tab);
+  });
+  activeNavTab = tab;
+}
+
+function closeNavPanel(){
+  navPanel.classList.remove('open');
+  activeNpTab = null;
+  setNavTab('map');
+}
+
+function openNavPanel(tab){
+  activeNpTab = tab;
+  setNavTab(tab);
+  closeSheet();
+  navPanel.classList.add('open');
+  if(tab==='discover')        renderNpDiscover();
+  else if(tab==='favorites')  renderNpFavorites();
+  else if(tab==='profile')    renderNpProfile();
+}
+
+document.querySelectorAll('.nav-tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    const t = tab.dataset.tab;
+    if(t==='map'){closeNavPanel();return;}
+    if(activeNpTab===t){closeNavPanel();return;}
+    openNavPanel(t);
+  });
+});
+
+document.getElementById('np-close-btn').addEventListener('click',closeNavPanel);
+
+/* ─── Discover panel ─── */
+function buildLocCard(l, onClick, distKm = null) {
+  const meta = cm(l.category);
+  const isFav = favorites.has(l.id);
+
+  const card = document.createElement('div');
+  card.className = 'loc-card';
+  card.dataset.id = l.id;
+
+  /* thumbnail */
+  const thumb = document.createElement('div');
+  thumb.className = 'lc-thumb';
+  const { base, exts } = resolveImgArgs(l);
+  tryLoadImage(base, exts,
+    url => {
+      const img = document.createElement('img');
+      img.alt = l.name;
+      img.src = url;
+      img.onload = () => { img.style.opacity = '1'; };
+      if (img.complete) img.style.opacity = '1';
+      thumb.appendChild(img);
+    },
+    () => { thumb.innerHTML = `<span class="lc-thumb-ph">${meta.icon}</span>`; }
+  );
+
+  /* text */
+  const text = document.createElement('div');
+  text.className = 'lc-text';
+  text.innerHTML = `<div class="lc-name">${l.name}</div>
+    <span class="lc-cat badge-${l.category}">${meta.label}</span>`;
+
+  /* distance (optional) */
+  if (distKm !== null) {
+    const d = document.createElement('div');
+    d.className = 'lc-dist';
+    d.textContent = `📍 ${fmtDist(distKm)}`;
+    text.appendChild(d);
+  }
+
+  /* star */
+  const star = document.createElement('span');
+  star.className = `lc-star${isFav ? ' on' : ''}`;
+  star.textContent = isFav ? '★' : '☆';
+
+  card.append(thumb, text, star);
+  card.addEventListener('click', () => onClick(l));
+  return card;
+}
+
+function renderNpDiscover(){
+  npTitle.textContent    = 'Keşfet';
+  npSubtitle.textContent = `${LOCS.length} tarihi nokta`;
+  npBody.innerHTML = '';
+
+  const navigate = loc => {
+    closeNavPanel();
+    map.setView([loc.lat, loc.lng], 17, {animate:true});
+    setTimeout(() => openSheet(loc), 350);
+  };
+
+  /* Nearby section when GPS is available */
+  if (userLatLng) {
+    const nearby = getNearby(3);
+    if (nearby.length) {
+      const sec = document.createElement('div');
+      sec.className = 'nearby-section';
+      const hdr = document.createElement('div');
+      hdr.className = 'nearby-header';
+      hdr.innerHTML = '<span style="font-size:14px">📍</span><span class="nearby-label">Yakınında · En Yakın 3 Konum</span>';
+      sec.appendChild(hdr);
+      nearby.forEach(l => sec.appendChild(buildLocCard(l, navigate, l._distKm)));
+      npBody.appendChild(sec);
+      const div = document.createElement('div');
+      div.className = 'all-divider';
+      div.textContent = 'Tüm Konumlar';
+      npBody.appendChild(div);
+    }
+  }
+
+  /* Full list with distances if GPS is available */
+  LOCS.forEach(l => {
+    const dist = userLatLng
+      ? haversineKm(userLatLng[0], userLatLng[1], l.lat, l.lng)
+      : null;
+    npBody.appendChild(buildLocCard(l, navigate, dist));
+  });
+}
+
+/* ─── Favorites panel ─── */
+function renderNpFavorites(){
+  npTitle.textContent    = 'Favoriler';
+  npSubtitle.textContent = favorites.size > 0
+    ? `${favorites.size} kayıtlı konum`
+    : 'Henüz favori eklenmedi';
+  npBody.innerHTML = '';
+  if(!favorites.size){
+    npBody.innerHTML = `<div class="np-empty">
+      <div class="np-empty-icon">☆</div>
+      <div class="np-empty-title">Favori yok</div>
+      <div class="np-empty-text">Bir konumu aç ve ☆ simgesine dokun.</div>
+    </div>`;
+    return;
+  }
+  [...favorites].forEach(id => {
+    const loc = byId[id]; if(!loc) return;
+    npBody.appendChild(buildLocCard(loc, l => {
+      closeNavPanel();
+      map.setView([l.lat, l.lng], 17, {animate:true});
+      setTimeout(() => openSheet(l), 350);
+    }));
+  });
+}
+
+/* ─── About panel ─── */
+function renderNpProfile(){
+  npTitle.textContent    = 'Hakkında';
+  npSubtitle.textContent = 'BucaMap';
+  npBody.innerHTML = `
+    <div class="about-hero">
+      <div class="about-mark">🗺</div>
+      <div class="about-app-name">BucaMap</div>
+      <p class="about-desc">Discover the hidden history of Buca through interactive storytelling.</p>
+    </div>
+
+    <div class="about-stats">
+      <div class="about-stat">
+        <div class="about-stat-num">${LOCS.length}</div>
+        <div class="about-stat-lbl">Locations</div>
+      </div>
+      <div class="about-stat-div"></div>
+      <div class="about-stat">
+        <div class="about-stat-num">${favorites.size}</div>
+        <div class="about-stat-lbl">Favorites</div>
+      </div>
+      <div class="about-stat-div"></div>
+      <div class="about-stat">
+        <div class="about-stat-num">19<span style="font-size:14px;font-weight:300">c.</span></div>
+        <div class="about-stat-lbl">Heritage</div>
+      </div>
+    </div>
+
+    <div class="about-section">
+      <div class="about-section-icon">🏛</div>
+      <div>
+        <div class="about-section-title">Levanten Mirası</div>
+        <div class="about-section-body">Buca was a favourite settlement of Levantine merchants in the 19th century. Grand mansions, churches, and ornate houses still stand as living monuments to that cosmopolitan era.</div>
+      </div>
+    </div>
+
+    <div class="about-section">
+      <div class="about-section-icon">🗿</div>
+      <div>
+        <div class="about-section-title">Osmanlı Katmanları</div>
+        <div class="about-section-body">Beneath the Levantine veneer lies a deeper Ottoman history — mosques, fountains, and aqueducts that shaped daily life in Buca for centuries.</div>
+      </div>
+    </div>
+
+    <div class="about-section">
+      <div class="about-section-icon">🌊</div>
+      <div>
+        <div class="about-section-title">Mübadele Anısı</div>
+        <div class="about-section-body">The 1923 population exchange left invisible scars. Places like the Göç ve Mübadele Anı Evi preserve the memory of families uprooted by history.</div>
+      </div>
+    </div>
+
+    <div class="about-footer">
+      <div class="about-footer-line">İzmir, Türkiye</div>
+      <div class="about-footer-line" style="opacity:.4">BucaMap · 2024</div>
+    </div>`;
+}
+
+/* ════════════════════════════════════════════════════
+   9. FAVORITES BADGE
+════════════════════════════════════════════════════ */
+function updateFavBadge(){
+  const badge = document.getElementById('fav-badge');
+  badge.textContent = favorites.size;
+  badge.classList.toggle('visible', favorites.size>0);
+  document.querySelector('[data-tab="favorites"] .nav-tab-icon').textContent =
+    favorites.size>0 ? '★' : '☆';
+}
+
+/* ════════════════════════════════════════════════════
+   10. SIDE DRAWER
+════════════════════════════════════════════════════ */
+const drawer    = document.getElementById('drawer');
+const drawerBd  = document.getElementById('drawer-backdrop');
+
+function openDrawer(){
+  drawer.classList.add('open');
+  drawerBd.classList.add('open');
+}
+function closeDrawer(){
+  drawer.classList.remove('open');
+  drawerBd.classList.remove('open');
+}
+
+document.getElementById('hamburger-btn').addEventListener('click',openDrawer);
+document.getElementById('drawer-close-btn').addEventListener('click',closeDrawer);
+drawerBd.addEventListener('click',closeDrawer);
+
+// drawer nav links
+document.getElementById('dnav-discover').addEventListener('click',()=>{closeDrawer();setTimeout(()=>openNavPanel('discover'),120);});
+document.getElementById('dnav-categories').addEventListener('click',()=>{closeDrawer();setTimeout(()=>{applyFilter('all');},120);});
+document.getElementById('dnav-nearby').addEventListener('click',()=>{
+  closeDrawer();
+  // Simple: just zoom to center of all locations
+  map.fitBounds(L.latLngBounds(LOCS.map(l=>[l.lat,l.lng])),{padding:[72,72],animate:true});
+});
+document.getElementById('dnav-about').addEventListener('click',()=>{closeDrawer();setTimeout(()=>openNavPanel('profile'),120);});
+
+// populate drawer locations list
+const drawerLocsList = document.getElementById('drawer-locs-list');
+drawerLocsList.innerHTML = LOCS.map(l=>{
+  const meta=cm(l.category);
+  return `<div class="drawer-loc-item" data-id="${l.id}">
+    <span class="dli-icon">${meta.icon}</span>
+    <div class="dli-text">
+      <div class="dli-name">${l.name}</div>
+      <div class="dli-cat">${meta.label}</div>
+    </div>
+  </div>`;
+}).join('');
+drawerLocsList.querySelectorAll('.drawer-loc-item').forEach(item=>{
+  item.addEventListener('click',()=>{
+    const loc=byId[item.dataset.id];if(!loc)return;
+    closeDrawer();
+    map.setView([loc.lat,loc.lng],17,{animate:true});
+    setTimeout(()=>openSheet(loc),400);
+  });
+});
+
+document.getElementById('dnav-total').textContent = LOCS.length;
+
+/* ════════════════════════════════════════════════════
+   11. ZOOM
+════════════════════════════════════════════════════ */
+document.getElementById('btn-zi').addEventListener('click',()=>map.zoomIn());
+document.getElementById('btn-zo').addEventListener('click',()=>map.zoomOut());
+
+/* Restore badge state from persisted favorites */
+updateFavBadge();
+
+/* ════════════════════════════════════════════════════
+   12. HAVERSINE + DISTANCE UTILS
+════════════════════════════════════════════════════ */
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
+            Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function fmtDist(km) {
+  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
+}
+
+/* ════════════════════════════════════════════════════
+   13. LOCATION TOAST
+════════════════════════════════════════════════════ */
+const toastEl = document.getElementById('location-toast');
+let _toastTimer = null;
+
+function showToast(msg, type = 'info', dur = 4000) {
+  toastEl.textContent = msg;
+  toastEl.className = `visible ${type}`;
+  clearTimeout(_toastTimer);
+  if (dur > 0) _toastTimer = setTimeout(() => toastEl.classList.remove('visible'), dur);
+}
+
+/* ════════════════════════════════════════════════════
+   14. USER GEOLOCATION
+════════════════════════════════════════════════════ */
+let userLatLng  = null;
+let userMarker  = null;
+let _watchId    = null;
+
+function makeUserIcon() {
+  return L.divIcon({
+    className: '',
+    html: '<div class="user-marker"><div class="user-pulse"></div><div class="user-dot"></div></div>',
+    iconSize: [40, 40], iconAnchor: [20, 20]
+  });
+}
+
+function placeUserMarker(latlng) {
+  if (!userMarker) {
+    userMarker = L.marker(latlng, { icon: makeUserIcon(), zIndexOffset: 1000 }).addTo(map);
+    userMarker.bindTooltip('Konumunuz', { permanent: false, direction: 'top' });
+  } else {
+    userMarker.setLatLng(latlng);
+  }
+}
+
+function onLocationSuccess(pos) {
+  userLatLng = [pos.coords.latitude, pos.coords.longitude];
+  placeUserMarker(userLatLng);
+  document.getElementById('find-me-btn').classList.remove('locating');
+  // Refresh discover if open to show nearby
+  if (activeNpTab === 'discover') renderNpDiscover();
+  // Refresh sheet distance if open
+  if (currentLoc) updateSheetDist(currentLoc);
+}
+
+function onLocationError(err) {
+  document.getElementById('find-me-btn').classList.remove('locating');
+  const msg = err.code === 1
+    ? 'Konum erişimi reddedildi. Yakın konum ve rota özellikleri için konum izni gereklidir.'
+    : 'Konum alınamadı. Lütfen tekrar deneyin.';
+  showToast(msg, 'error', 6000);
+}
+
+function startWatchingLocation() {
+  if (!navigator.geolocation) {
+    showToast('Tarayıcınız konum özelliğini desteklemiyor.', 'error');
+    return;
+  }
+  if (_watchId !== null) return; // already watching
+  document.getElementById('find-me-btn').classList.add('locating');
+  _watchId = navigator.geolocation.watchPosition(
+    onLocationSuccess, onLocationError,
+    { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+  );
+}
+
+document.getElementById('find-me-btn').addEventListener('click', () => {
+  if (userLatLng) {
+    map.setView(userLatLng, 17, { animate: true, duration: 0.8 });
+  } else {
+    startWatchingLocation();
+    showToast('Konum aranıyor…', 'info', 3000);
+  }
+});
+
+/* ════════════════════════════════════════════════════
+   15. NEARBY LOCATIONS
+════════════════════════════════════════════════════ */
+function getNearby(n = 3) {
+  if (!userLatLng) return [];
+  return LOCS
+    .map(l => ({ ...l, _distKm: haversineKm(userLatLng[0], userLatLng[1], l.lat, l.lng) }))
+    .sort((a, b) => a._distKm - b._distKm)
+    .slice(0, n);
+}
+
+/* ════════════════════════════════════════════════════
+   16. SHEET: distance + route button wiring
+════════════════════════════════════════════════════ */
+const sDistEl    = document.getElementById('s-dist');
+const sRouteBtnEl = document.getElementById('sheet-route-btn');
+
+function updateSheetDist(loc) {
+  if (userLatLng) {
+    const km = haversineKm(userLatLng[0], userLatLng[1], loc.lat, loc.lng);
+    sDistEl.textContent = `📍 ${fmtDist(km)} uzakta`;
+    sDistEl.style.display = '';
+  } else {
+    sDistEl.style.display = 'none';
+  }
+}
+
+function updateSheetRouteBtn(id) {
+  const inRoute = isInRoute(id);
+  sRouteBtnEl.textContent = inRoute ? '✓ Rotadan Çıkar' : '+ Rotaya Ekle';
+  sRouteBtnEl.classList.toggle('in-route', inRoute);
+}
+
+sRouteBtnEl.addEventListener('click', () => {
+  if (!currentLoc) return;
+  addToRoute(currentLoc);
+  updateSheetRouteBtn(currentLoc.id);
+});
+
+/* ════════════════════════════════════════════════════
+   17. ROUTE STATE + VISUALIZATION
+════════════════════════════════════════════════════ */
+let routeLocs      = [];   // ordered loc objects
+let routePolyline  = null;
+let routeWpMarkers = [];
+
+function isInRoute(id)    { return routeLocs.some(l => l.id === id); }
+function routeTotalKm()   {
+  let t = 0;
+  for (let i = 0; i < routeLocs.length - 1; i++)
+    t += haversineKm(routeLocs[i].lat, routeLocs[i].lng, routeLocs[i+1].lat, routeLocs[i+1].lng);
+  return t;
+}
+
+function makeWpIcon(n) {
+  return L.divIcon({
+    className: '',
+    html: `<div class="wp-marker">${n}</div>`,
+    iconSize: [28, 28], iconAnchor: [14, 14]
+  });
+}
+
+function drawRoute() {
+  // Clear old polyline + waypoint markers
+  if (routePolyline) { map.removeLayer(routePolyline); routePolyline = null; }
+  routeWpMarkers.forEach(m => map.removeLayer(m));
+  routeWpMarkers = [];
+
+  if (routeLocs.length === 0) return;
+
+  const coords = routeLocs.map(l => [l.lat, l.lng]);
+
+  if (routeLocs.length > 1) {
+    routePolyline = L.polyline(coords, {
+      color: '#c8a84b', weight: 3.5, opacity: .9,
+      dashArray: '10 7', lineJoin: 'round'
+    }).addTo(map);
+  }
+
+  routeLocs.forEach((loc, i) => {
+    const m = L.marker([loc.lat, loc.lng], {
+      icon: makeWpIcon(i + 1), zIndexOffset: 900
+    }).addTo(map);
+    m.on('click', e => { L.DomEvent.stopPropagation(e); openSheet(loc); });
+    routeWpMarkers.push(m);
+  });
+}
+
+function addToRoute(loc) {
+  if (isInRoute(loc.id)) {
+    removeFromRoute(loc.id);
+  } else {
+    routeLocs.push(loc);
+    drawRoute();
+    updateRouteFab();
+    if (document.getElementById('route-panel').classList.contains('open')) renderRoutePanel();
+  }
+}
+
+function removeFromRoute(id) {
+  routeLocs = routeLocs.filter(l => l.id !== id);
+  drawRoute();
+  updateRouteFab();
+  if (currentLoc && currentLoc.id === id) updateSheetRouteBtn(id);
+  if (document.getElementById('route-panel').classList.contains('open')) renderRoutePanel();
+}
+
+function clearRoute() {
+  routeLocs = [];
+  drawRoute();
+  updateRouteFab();
+  closeRoutePanel();
+  // Reset route btn if sheet is open
+  if (currentLoc) updateSheetRouteBtn(currentLoc.id);
+}
+
+/* ════════════════════════════════════════════════════
+   18. ROUTE FAB + PANEL
+════════════════════════════════════════════════════ */
+const routePanelEl = document.getElementById('route-panel');
+
+function updateRouteFab() {
+  const fab = document.getElementById('route-fab');
+  const badge = document.getElementById('route-fab-count');
+  badge.textContent = routeLocs.length;
+  fab.classList.toggle('visible', routeLocs.length > 0);
+  if (routeLocs.length === 0) closeRoutePanel();
+}
+
+function openRoutePanel() {
+  renderRoutePanel();
+  routePanelEl.classList.add('open');
+  closeSheet();
+}
+function closeRoutePanel() { routePanelEl.classList.remove('open'); }
+
+document.getElementById('route-fab').addEventListener('click', () => {
+  routePanelEl.classList.contains('open') ? closeRoutePanel() : openRoutePanel();
+});
+document.getElementById('route-panel-close').addEventListener('click', closeRoutePanel);
+document.getElementById('route-clear-btn').addEventListener('click', clearRoute);
+
+function renderRoutePanel() {
+  const listEl  = document.getElementById('route-list');
+  const totalEl = document.getElementById('route-total');
+  listEl.innerHTML = '';
+
+  if (routeLocs.length === 0) {
+    listEl.innerHTML = '<div class="rp-empty">Henüz konum eklenmedi.</div>';
+    totalEl.textContent = 'Henüz konum seçilmedi';
+    return;
+  }
+
+  routeLocs.forEach((loc, i) => {
+    const legKm = i < routeLocs.length - 1
+      ? haversineKm(loc.lat, loc.lng, routeLocs[i+1].lat, routeLocs[i+1].lng)
+      : null;
+
+    const item = document.createElement('div');
+    item.className = 'route-item';
+    item.innerHTML = `
+      <div class="ri-num">${i + 1}</div>
+      <div class="ri-body">
+        <div class="ri-name">${loc.name}</div>
+        ${legKm !== null ? `<div class="ri-leg">↓ ${fmtDist(legKm)} sonraki durağa</div>` : ''}
+      </div>
+      <button class="ri-del" data-id="${loc.id}" title="Kaldır">✕</button>`;
+
+    item.querySelector('.ri-del').addEventListener('click', e => {
+      e.stopPropagation();
+      removeFromRoute(loc.id);
+    });
+    item.addEventListener('click', () => {
+      closeRoutePanel();
+      map.setView([loc.lat, loc.lng], 17, {animate:true});
+      setTimeout(() => openSheet(loc), 350);
+    });
+    listEl.appendChild(item);
+  });
+
+  const total = routeTotalKm();
+  totalEl.textContent = routeLocs.length === 1
+    ? '1 konum seçildi'
+    : `${routeLocs.length} konum · Toplam ${fmtDist(total)}`;
+}
+
+/* ════════════════════════════════════════════════════
+   19. PATCH openSheet to show distance + route state
+════════════════════════════════════════════════════ */
+const _origOpenSheet = openSheet;
+// Override openSheet to inject distance + route btn state
+window.openSheet = function(loc) {
+  _origOpenSheet(loc);
+  updateSheetDist(loc);
+  updateSheetRouteBtn(loc.id);
+};
+
+</script>
+</body>
+</html>
